@@ -4,14 +4,17 @@ import io.smallrye.mutiny.Uni;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+// import javax.ws.rs.PATCH;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriInfo;
 import org.bson.types.ObjectId;
 
 /* The Path annotation sets up the base path for all the API entry points */
@@ -93,7 +96,7 @@ public class AccountServiceAPI {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Uni<Response> addAccount(Account a) {
+  public Uni<Response> addAccount(Account a, @Context UriInfo uriInfo) {
     /* 
     First a todo: the account object needs to be validated. Quarkus fills the Account object by looking in the JSON string for elements whose key is the name of one of the fields of the Account class (name, city, etc.). If it finds one, it places that JSON element in the appropriate field of the passed in account object. It ignores all other fields. So, if someone passes in JSON that doesn't have some or all of the required data in the JSON string, then the Account object could be empty or invalid.
 
@@ -104,7 +107,19 @@ public class AccountServiceAPI {
     return a
       .persist()
       .onItem()
-      .transform(v -> Response.status(Status.CREATED).build())
+      .transform(
+        v ->
+          Response
+            .status(Status.CREATED)
+            .entity(
+              uriInfo
+                .getAbsolutePathBuilder()
+                .segment(a.id.toString())
+                .build()
+                .toString()
+            )
+            .build()
+      )
       .onFailure()
       .recoverWithItem(
         err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build()
@@ -153,10 +168,7 @@ public class AccountServiceAPI {
             /* 
             Update the fields of a1 with all the fields from the account passed into the method (a)
             */
-            a1.name = a.name;
-            a1.address = a.address;
-            a1.city = a.city;
-            a1.zip = a.zip;
+            a1.updateFields(a);
 
             /* 
             Now we can update the database with the values in the linked account (a1). This is a reactive call, and so we have to handle its completion (onItem) and return the appropriate Response. 
@@ -230,4 +242,15 @@ public class AccountServiceAPI {
       .onFailure()
       .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build());
   }
+  // @PATCH
+  // @Path("/{capabilityId}/hasEntryPoint/{entryPointId}")
+  // public Uni<Response> addEntryPoint(@PathParam("capabilityId") String capId, @PathParam("entryPointId") String epId) {
+
+  //   // Find the capability by capId - store in variable cap
+  //   // cap.entrPoints.append(epId);
+  //   // cap.update
+  //   // Return Response
+
+  // }
+
 }
