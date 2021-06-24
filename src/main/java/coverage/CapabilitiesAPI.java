@@ -127,4 +127,18 @@ public class CapabilitiesAPI {
       .onFailure()
       .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build())
   }
+  @PATCH
+  @Path("{/capbilityId}/hasEntryPoint/{entryPointId}")
+  @Consumes(MediaType.APPLICATION_JSON)
+  public Uni<Response> addEntryPoint(@PathParam("capabilityId") String capId, @PathParam("entryPointId") String epId) {
+    return Capabilities
+      Capabilities cap = .findByIdOptional(new ObjectId(id))
+      .onItem()
+      .transform(cap.entrPoints.append(epId).build());
+        cap.update()
+        return 
+          Response.ok().entity(cap).build()
+      .onFailure()
+      .recoverWithItem( err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build());
+  }
 }
