@@ -1,0 +1,175 @@
+package coverage;
+
+import io.smallrye.mutiny.Uni;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriInfo;
+import org.bson.types.ObjectId;
+
+/* The Path annotation sets up the base path for all the API entry points */
+@Path("/product")
+public class AccountServiceAPI {
+    @GET 
+    @Produces(MediaType.APPLICATION_JSON)
+    public Uni<Response> list() {
+        return Product 
+        .listAll()
+        .onItem()
+        .transform(accts -> Response.ok().entity(accts).build())
+        .onFailure()
+        .recoverWithItem(
+            err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build()
+      );
+}
+
+@GET 
+@Path("/{productId}")
+@Produces(MediaType.APPLICATION_JSON)
+public Uni<Response> getProduct(@PathParam("productId") String id) {
+    return Product
+    .findByIdOptional(new ObjectId(id))
+    .onItem()
+    .transform(
+        ao -> {
+            if (ao.isPresent()) {
+                return Response.ok().entity(ao.get()).build();
+            } else {
+                return Response.status(Status.NOT_FOUND).build():
+            }
+        }
+    )
+    .onFailure()
+    .recoverWithItem(
+        err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build()
+    );
+}
+
+@POST 
+@Consumes(MediaType.APPLICATION_JSON)
+public Uni<Response> addProduct(Product a @Context UriInfo uriInfo) {
+    return a 
+    .persist()
+    .onitem()
+    .transform(
+        v ->
+          Response
+            .status(Status.CREATED)
+            .entity(
+                uriInfo
+                  .getAbsolutePathBuilder()
+                  .segment(a.id.toString())
+                  .build()
+                  .toString()
+            )
+            .build()
+    )
+    .onFailure()
+    .recoverWithItem(
+        err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build()
+    );
+}
+
+@PUT
+@Path("/{productId}")
+@Consumes(MediaType.APPLICATION_JSON)
+public Uni<Response> updateAccount(
+    @PathParam("productId") String id,
+    Product a
+)   {
+    return Product
+      .<Product>findByIdOptional(new ObjectId(id))
+      .onItem()
+      .transformToUni(
+        ao -> {
+          if (ao.isPresent()) {
+            Product a1 = ao.get();
+            a1.updateFields(a);
+            return a1
+              .update()
+              .onItem()
+              .transform(v -> Response.ok().build())
+              .onFailure()
+              .recoverWithItem(
+                err ->
+                  Response
+                    .status(Status.INTERNAL_SERVER_ERROR)
+                    .entity(err)
+                    .build()
+              );
+          } else {
+            return Uni
+              .createFrom()
+              .item(Response.status(Status.NOT_FOUND).entity(a).build());
+          }
+        }
+      )
+      .onFailure()
+      .recoverWithItem(
+        err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build()
+      );
+}
+
+@DELETE
+public Uni<Response> deleteAllAccounts() {
+    return Account
+      .deleteAll()
+      .onItem()
+      .transform(count -> Response.ok().entity(count).build())
+      .onFailure()
+      .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build());
+}
+
+@DELETE
+@Path("/{productId}")
+public Uni<Response> deleteProductById(@PathParam("productId") String id) {
+    return Product
+      .deleteById(new ObjectId(id))
+      .onItem()
+      .transform(
+        succeeded -> {
+          if (succeeded) {
+            return Response.ok().build();
+          } else {
+            return Response.status(Status.NOT_FOUND).build();
+          }
+        }
+      )
+      .onFailure()
+      .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build());
+}
+
+@PATCH
+@Path("/{productId}/hasClientRef/{clientRefId}")
+public Uni<Response> addClientRef(@PathParam("productId") String productId, @PathParam("clientRefId") String cfId) {
+  return Product  
+    .<Product>findByIdOptional(new ObjectId(id))
+    .onItem()
+    product.clientRef.append(cfId);
+    product.update();
+    return Response.ok().build();
+    .onFailure()
+    .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build());
+}
+
+@PATCH
+@Path("/{productId}/hasEntryPoint/{entryPointId}")
+public Uni<Response> addEntryPoint(@PathParam("productId") String productId, @PathParam("entryPointId") String epId) {
+  return Product  
+    .<Product>findByIdOptional(new ObjectId(id))
+    .onItem()
+    product.entryPoint.append(cfId);
+    product.update();
+    return Response.ok().build();
+    .onFailure()
+    .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build());
+}
