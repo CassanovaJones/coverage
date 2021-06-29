@@ -1,20 +1,20 @@
 package coverage;
 
 import io.smallrye.mutiny.Uni;
-
-import java.security.DrbgParameters.Capability;
-
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.PATCH;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriInfo;
 import org.bson.types.ObjectId;
 
 
@@ -56,12 +56,12 @@ public class CapabilitiesAPI {
   }
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Uni<Response> addCap(Capabilities a) {
+  public Uni<Response> addCap(Capabilities a, @Context UriInfo uriInfo) {
     return a
       .persist()
       .onItem()
       .transform(i -> Response.status(Status.CREATED).build())
-      .onfailure()
+      .onFailure()
       .recoverWithItem(
         err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build()
       );
@@ -75,9 +75,9 @@ public class CapabilitiesAPI {
       .<Capabilities>findByIdOptional(new ObjectId(id))
       .onItem()
       .transformToUni(
-        capOp -> {
-          if (capOp.isPresent()) {
-            Capabilities cap1 = capOp.get();
+        co -> {
+          if (co.isPresent()) {
+            Capabilities cap1 = co.get();
             cap1.name = cap.name;
             cap1.description = cap.description;
             cap1.entryPoints = cap.entryPoints;
@@ -98,7 +98,7 @@ public class CapabilitiesAPI {
               .item(Response.status(Status.NOT_FOUND).entity(cap).build());
           }
         }
-      );
+      )
       .onFailure()
       .recoverWithItem(err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build());
   }
@@ -118,27 +118,29 @@ public class CapabilitiesAPI {
       .deleteById(new Object(id))
       .onItem()
       .transform(
-        success -> {
-          if (success) {
-            return
+        succeeded -> {
+          if (succeeded) {
+            return Response.ok().build();
+          } else {
+            return Response.status(Status.NOT_FOUND).build();
           }
         }
       )
       .onFailure()
-      .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build())
+      .recoverWithItem(Response.status(Status.INTERNAL_SERVER_ERROR).build());
   }
   @PATCH
   @Path("{/capbilityId}/hasEntryPoint/{entryPointId}")
   @Consumes(MediaType.APPLICATION_JSON)
   public Uni<Response> addEntryPoint(@PathParam("capabilityId") String capId, @PathParam("entryPointId") String epId) {
     return Capabilities
-      Capabilities cap = .findByIdOptional(new ObjectId(id))
+      .findByIdOptional(new ObjectId(capId))
       .onItem()
-      .transform(cap.entrPoints.append(epId).build());
-        cap.update()
+      .transform(cap.entryPoints.append(epId).build());
+        cap.update();
         return 
           Response.ok().entity(cap).build()
       .onFailure()
       .recoverWithItem( err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build());
-  }
+  };
 }
