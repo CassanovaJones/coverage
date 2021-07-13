@@ -55,7 +55,7 @@ public class CapabilitiesTest {
       .then()
       .statusCode(201)
       .extract()
-      .response()
+      .response() //is URL
       .asString();
 
     given()

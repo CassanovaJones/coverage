@@ -1,9 +1,13 @@
 package coverage;
 
 import io.smallrye.mutiny.Uni;
+
+import java.security.DrbgParameters.Capability;
+
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.PATCH;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -134,13 +138,28 @@ public class CapabilitiesAPI {
   @Consumes(MediaType.APPLICATION_JSON)
   public Uni<Response> addEntryPoint(@PathParam("capabilityId") String capId, @PathParam("entryPointId") String epId) {
     return Capabilities
-      .findByIdOptional(new ObjectId(capId))
+      .<Capabilities>findByIdOptional(new ObjectId(capId))
       .onItem()
-      .transform(cap.entryPoints.append(epId).build());
-        cap.update();
-        return 
-          Response.ok().entity(cap).build()
-      .onFailure()
+      .transformToUni(                                            //Prevents two Unis from being returned
+        capOpt -> {
+          if (capOpt.isPresent()) {
+                   capOpt.get().entryPoints.add(epId);
+            return capOpt.get().update();
+          } else { 
+              throw new NotFoundException();
+          }
+            
+        }
+      )
+      .onItem()
+      .transform(v -> {return Response.ok().build();})
+      .onFailure(f -> {
+        if (f.getClass()== NotFoundException.class){
+          return Response.status(Status.NOT_FOUND) != null; 
+        } else {
+          return false;
+        }
+      })
       .recoverWithItem( err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build());
   };
 }
