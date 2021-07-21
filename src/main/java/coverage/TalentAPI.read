@@ -1,0 +1,65 @@
+package coverage;
+
+import io.smallrye.mutiny.Uni;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriInfo;
+import org.bson.types.ObjectId;
+
+
+@Path("/accounts")
+public class TalentAPI {
+  @POST  //HTTP Method
+    @Path("/{accountId}/assignTalent/{talentId}") //................................appends onto '/accounts' path
+    public Uni<Response> assignTalent(
+      @PathParam("accountId") String accountId,
+      @PathParam("talentId") String talentId
+    ) {
+      return Uni
+        .combine()
+        .all()                     //...............................................Combines all Unis into a new one
+        .unis(
+          Account.<Account>findByIdOptional(new ObjectId(accountId)),  //...........specifies which Unis???
+          Talent.<Talent>findByIdOptional(new ObjectId(talentId))      //
+        )
+        .asTuple()  //.............................................................make immutable
+        .onItem()   //
+        .transform(
+          tuple -> {
+            if (tuple.getItem1().isPresent() && tuple.getItem2().isPresent()) {  //if Account & Talent Unis are present
+              return Tuple2.of(tuple.getItem1().get(), tuple.getItem2().get());  //return a new tuple containing both
+            } else {
+              throw new NotFoundException();                                     //else throw Not Found error
+            }
+          }
+        )
+        .onItem()
+        .transform(
+          tuple -> {
+            Account a = tuple.getItem1();
+            Talent t = tuple.getItem2();
+            a.assignTalent(t);
+            t.assignAccount(a);
+            return Uni.combine().all().unis(a.update(), t.update());
+          }
+        )
+        .onItem()
+        .transform(v -> Response.ok().build())
+        .onFailure(error -> error.getClass() == NotFoundException.class)
+        .recoverWithItem(Response.status(Status.NOT_FOUND).build())
+        .onFailure()
+        .recoverWithItem(
+          err -> Response.status(Status.INTERNAL_SERVER_ERROR).entity(err).build()
+        );
+    }
+}    
